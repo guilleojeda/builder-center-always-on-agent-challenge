@@ -63,7 +63,7 @@ sam deploy \
   --parameter-overrides \
     BuildSha="$BUILD_SHA" \
     ScheduleEnabled="false" \
-    ScheduleExpression="rate(1 hour)"
+    "ScheduleExpression='rate(1 hour)'"
 ```
 
 Get the public URL from the stack output and open it. It should say that it is waiting for its first scheduled run.
@@ -91,7 +91,7 @@ sam deploy \
   --parameter-overrides \
     BuildSha="$BUILD_SHA" \
     ScheduleEnabled="true" \
-    ScheduleExpression="rate(1 minute)"
+    "ScheduleExpression='rate(1 minute)'"
 ```
 
 After a scheduled report appears, restore the intended hourly cadence:
@@ -107,7 +107,7 @@ sam deploy \
   --parameter-overrides \
     BuildSha="$BUILD_SHA" \
     ScheduleEnabled="true" \
-    ScheduleExpression="rate(1 hour)"
+    "ScheduleExpression='rate(1 hour)'"
 ```
 
 ## Verify the deployed agent
@@ -122,7 +122,7 @@ sam deploy \
 
 The agent only fetches one fixed HTTPS AWS feed, bounds feed and model output sizes, treats announcement text as untrusted data, validates source URLs, escapes rendered content, and sends restrictive browser security headers. Beyond basic log delivery, its role can only read/write the one table and invoke the pinned Nova model. The public endpoint is intentionally unauthenticated, but it is read-only and never generates a report.
 
-This stack can incur charges for Bedrock inference, Lambda compute and requests, EventBridge, DynamoDB on-demand reads/writes, CloudWatch Logs, and SAM packaging storage. Free Tier eligibility and promotional credits vary. Reserved Lambda concurrency is one, the normal generation cadence is hourly, and logs expire after seven days; heavy public traffic can still create Lambda/DynamoDB read costs and temporarily delay a scheduled run. That tradeoff is suitable for this small public challenge proof, not a high-traffic production service.
+This stack can incur charges for Bedrock inference, Lambda compute and requests, EventBridge, DynamoDB on-demand reads/writes, CloudWatch Logs, and SAM packaging storage. Free Tier eligibility and promotional credits vary. The normal generation cadence is hourly and logs expire after seven days; heavy public traffic can still create Lambda/DynamoDB read costs and temporarily compete with a scheduled run. That tradeoff is suitable for this small public challenge proof, not a high-traffic production service.
 
 ## Teardown
 
