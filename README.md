@@ -4,7 +4,7 @@ AWS Change Scout is an always-on personal agent for builders who care about serv
 
 If a feed or model call fails, Lambda reports the failure to CloudWatch and leaves the previous successful brief untouched.
 
-**Live report:** _Pending deployment. Replace this line with the CloudFormation `PublicReportUrl` stack output._
+**Live report:** <https://vjbpofzpe4acawbvxybzaeuaqa0pkpog.lambda-url.us-east-1.on.aws/>
 
 **Source:** <https://github.com/guilleojeda/builder-center-always-on-agent-challenge>
 
