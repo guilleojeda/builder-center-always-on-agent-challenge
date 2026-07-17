@@ -82,17 +82,28 @@ Resources:
               Action:
                 - bedrock:InvokeModel
               Resource: !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${NovaModelId}
-      Events:
-        HourlySchedule:
-          Type: Schedule
-          Properties:
-            Name: !Sub ${AWS::StackName}-hourly
-            Description: Wakes AWS Change Scout without human input.
-            Schedule: !Ref ScheduleExpression
-            Enabled: !If [IsScheduleEnabled, true, false]
-            RetryPolicy:
-              MaximumEventAgeInSeconds: 300
-              MaximumRetryAttempts: 1
+
+  ChangeScoutScheduleRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub ${AWS::StackName}-hourly
+      Description: Wakes AWS Change Scout without human input.
+      ScheduleExpression: !Ref ScheduleExpression
+      State: !If [IsScheduleEnabled, ENABLED, DISABLED]
+      Targets:
+        - Arn: !GetAtt ChangeScoutFunction.Arn
+          Id: ChangeScoutLambda
+          RetryPolicy:
+            MaximumEventAgeInSeconds: 300
+            MaximumRetryAttempts: 1
+
+  ChangeScoutSchedulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ChangeScoutFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt ChangeScoutScheduleRule.Arn
 
   ChangeScoutLogGroup:
     Type: AWS::Logs::LogGroup

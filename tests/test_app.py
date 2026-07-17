@@ -247,5 +247,14 @@ class FeedContractTests(unittest.TestCase):
             app.parse_feed(b"x" * (app.MAX_FEED_BYTES + 1))
 
 
+class InfrastructureContractTests(unittest.TestCase):
+    def test_schedule_state_is_resolved_by_cloudformation_not_sam_shorthand(self):
+        template = (Path(__file__).resolve().parents[1] / "template.yaml").read_text()
+
+        self.assertIn("Type: AWS::Events::Rule", template)
+        self.assertIn("State: !If [IsScheduleEnabled, ENABLED, DISABLED]", template)
+        self.assertNotIn("Type: Schedule\n", template)
+
+
 if __name__ == "__main__":
     unittest.main()
