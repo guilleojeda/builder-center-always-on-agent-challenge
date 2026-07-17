@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: AWS Change Scout - an autonomous Nova-powered AWS announcement brief
+
+Parameters:
+  ScheduleExpression:
+    Type: String
+    Default: rate(1 hour)
+    AllowedValues:
+      - rate(1 minute)
+      - rate(1 hour)
+    Description: EventBridge cadence; one minute is only for deployment verification.
+  ScheduleEnabled:
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Disable only while auditing the deployed empty state.
+  BuildSha:
+    Type: String
+    Default: "0000000000000000000000000000000000000000"
+    AllowedPattern: "^[0-9a-f]{40}$"
+    Description: Exact pushed git SHA deployed by this stack.
+  NovaModelId:
+    Type: String
+    Default: amazon.nova-micro-v1:0
+    AllowedValues:
+      - amazon.nova-micro-v1:0
+
+Conditions:
+  IsScheduleEnabled: !Equals [!Ref ScheduleEnabled, "true"]
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures:
+      - arm64
+    MemorySize: 256
+    Timeout: 60
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref ReportTable
+        BEDROCK_MODEL_ID: !Ref NovaModelId
+        BUILD_SHA: !Ref BuildSha
+        SCHEDULE_EXPRESSION: !Ref ScheduleExpression
+
+Resources:
+  ReportTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+
+  ChangeScoutFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-agent
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Description: Generates and serves the latest autonomous AWS Change Scout brief.
+      ReservedConcurrentExecutions: 1
+      FunctionUrlConfig:
+        AuthType: NONE
+        InvokeMode: BUFFERED
+      Policies:
+        - Statement:
+            - Sid: ReadWriteLatestReport
+              Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+              Resource: !GetAtt ReportTable.Arn
+            - Sid: InvokePinnedNovaModel
+              Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${NovaModelId}
+      Events:
+        HourlySchedule:
+          Type: Schedule
+          Properties:
+            Name: !Sub ${AWS::StackName}-hourly
+            Description: Wakes AWS Change Scout without human input.
+            Schedule: !Ref ScheduleExpression
+            Enabled: !If [IsScheduleEnabled, true, false]
+            RetryPolicy:
+              MaximumEventAgeInSeconds: 300
+              MaximumRetryAttempts: 1
+
+  ChangeScoutLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-agent
+      RetentionInDays: 7
+
+Outputs:
+  PublicReportUrl:
+    Description: Public read-only page containing the latest completed report.
+    Value: !GetAtt ChangeScoutFunctionUrl.FunctionUrl
+  FunctionName:
+    Description: Lambda function name for direct and telemetry verification.
+    Value: !Ref ChangeScoutFunction
+  ReportTableName:
+    Description: DynamoDB table holding the latest successful report.
+    Value: !Ref ReportTable
+  ScheduleRuleName:
+    Description: EventBridge scheduled rule name.
+    Value: !Sub ${AWS::StackName}-hourly
+  DeployedBuildSha:
+    Description: Exact pushed source SHA represented by this deployment.
+    Value: !Ref BuildSha
+  ScheduleState:
+    Description: Whether the autonomous EventBridge rule is enabled.
+    Value: !If [IsScheduleEnabled, ENABLED, DISABLED]
